@@ -15,6 +15,7 @@ export function createBot(config, dependencies = {}) {
   let polling = false;
   let stopped = false;
   let targetGuildId;
+  let honeypotController;
   const pendingHoneypotBans = new Set();
 
   async function poll() {
@@ -99,7 +100,9 @@ export function createBot(config, dependencies = {}) {
       if (honeypotChannel.guild.id !== targetGuildId) {
         throw new Error("The changelog and honeypot channels must belong to the same Discord server.");
       }
-      await initializeHoneypot(honeypotChannel, readyClient.user);
+      honeypotController = await initializeHoneypot(honeypotChannel, readyClient.user, {
+        stateFile: config.honeypotStateFile,
+      });
       console.log(`Logged in as ${readyClient.user.tag}; watching ${config.repository.fullName}.`);
       await poll();
       if (config.healthFile) await writeFile(config.healthFile, `${new Date().toISOString()}\n`, "utf8");
@@ -120,6 +123,7 @@ export function createBot(config, dependencies = {}) {
       channelId: config.honeypotChannelId,
       clientUserId: client.user.id,
       pendingBans: pendingHoneypotBans,
+      onBan: () => honeypotController?.recordBan(),
     });
   });
   client.on(Events.Error, (error) => console.error("Discord client error:", error));
@@ -131,6 +135,7 @@ export function createBot(config, dependencies = {}) {
     async stop() {
       stopped = true;
       if (timer) clearInterval(timer);
+      honeypotController?.destroy();
       client.destroy();
     },
     poll,

@@ -19,6 +19,7 @@ test("loadConfig supplies safe polling defaults", () => {
   assert.equal(config.pollIntervalMs, 300_000);
   assert.equal(config.includePrereleases, true);
   assert.equal(config.postLatestOnStart, true);
+  assert.match(config.honeypotStateFile, /honeypot\.json$/);
   assert.equal(config.healthFile, undefined);
 });
 

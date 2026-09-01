@@ -3,7 +3,8 @@ node_modules/
 .github/
 .env
 .data/
-assets/
+assets/*
+!assets/sndboxicon.png
 test/
 README.md
 compose.yml

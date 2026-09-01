@@ -101,6 +101,7 @@ jobs:
             printf 'POLL_INTERVAL_SECONDS=300\n'
             printf 'INCLUDE_PRERELEASES=true\n'
             printf 'POST_LATEST_ON_START=true\n'
+            printf 'HONEYPOT_STATE_FILE=/app/.data/honeypot.json\n'
           } > "$runtime_env"
           scp compose.yml deploy.sh "$runtime_env" discord-bot-droplet:
           ssh discord-bot-droplet "install -d -m 0755 '$DROPLET_DEPLOY_PATH' && install -m 0644 compose.yml '$DROPLET_DEPLOY_PATH/compose.yml' && install -m 0755 deploy.sh '$DROPLET_DEPLOY_PATH/deploy.sh' && install -m 0600 discord-bot.env '$DROPLET_DEPLOY_PATH/.env' && rm -f compose.yml deploy.sh discord-bot.env"

@@ -11,13 +11,19 @@ When a human member joins the server, the bot assigns role
 the main sndbox links. Failed DMs are logged without preventing role assignment.
 
 Channel `1544427379919954031` is an automated anti-spam honeypot. On startup,
-the bot creates an owned `sndbox Honeypot` webhook and posts a branded warning
-embed exactly once. Any non-webhook account that sends a message in that channel
-is permanently banned and its messages from the preceding 24 hours are removed.
+the bot posts a branded warning through an owned webhook that appears as
+`sndbox` and uses `assets/sndboxicon.png` as its avatar. A disabled button shows
+the current ban count. Any non-webhook account that sends a message in that
+channel is permanently banned and its messages from the preceding 24 hours are
+removed.
 
 Posted release IDs are saved in `.data/state.json`, so restarting the bot does
 not create duplicate announcements. On a brand-new installation, the current
 latest release is posted once by default.
+
+The honeypot webhook credentials, warning message ID, and ban count are stored
+in `.data/honeypot.json`. Keep that file private because it contains a Discord
+webhook token. The Docker volume preserves both state files across deployments.
 
 ## Set up Discord
 
@@ -25,7 +31,7 @@ latest release is posted once by default.
 2. Copy/reset the bot token. Never commit or share this token.
 3. Under **Bot**, enable the privileged **Server Members Intent**. Message Content is not required.
 4. Under **Installation**, enable a server/guild install with the `bot` scope.
-5. Grant **View Channels**, **Send Messages**, **Embed Links**, **Manage Roles**, **Manage Webhooks**, and **Ban Members**, then use the install link to add the bot to your server.
+5. Grant **View Channels**, **Read Message History**, **Send Messages**, **Embed Links**, **Manage Messages**, **Manage Roles**, **Manage Webhooks**, and **Ban Members**, then use the install link to add the bot to your server.
 6. In the server role list, place the bot's role above role `1544329194157375569`; Discord prevents bots from assigning roles above their own.
 7. In Discord, enable Developer Mode, right-click the destination channel, and choose **Copy Channel ID**.
 

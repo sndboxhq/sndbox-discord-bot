@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 const discordSnowflake = /^\d{17,20}$/;
 const githubName = /^[A-Za-z0-9_.-]+$/;
@@ -27,6 +27,10 @@ export function loadConfig(env = process.env, workingDirectory = process.cwd()) 
     60,
     86_400,
   );
+  const stateFile = resolve(workingDirectory, optional(env.STATE_FILE) ?? ".data/state.json");
+  const honeypotStateFile = optional(env.HONEYPOT_STATE_FILE)
+    ? resolve(workingDirectory, optional(env.HONEYPOT_STATE_FILE))
+    : resolve(dirname(stateFile), "honeypot.json");
 
   return Object.freeze({
     token,
@@ -38,7 +42,8 @@ export function loadConfig(env = process.env, workingDirectory = process.cwd()) 
     pollIntervalMs: pollIntervalSeconds * 1_000,
     includePrereleases: boolean(env.INCLUDE_PRERELEASES, true, "INCLUDE_PRERELEASES"),
     postLatestOnStart: boolean(env.POST_LATEST_ON_START, true, "POST_LATEST_ON_START"),
-    stateFile: resolve(workingDirectory, optional(env.STATE_FILE) ?? ".data/state.json"),
+    stateFile,
+    honeypotStateFile,
     healthFile: optional(env.HEALTH_FILE)
       ? resolve(workingDirectory, optional(env.HEALTH_FILE))
       : undefined,
