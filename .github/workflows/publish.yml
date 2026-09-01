@@ -23,6 +23,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm test
       - run: npm run check
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
@@ -38,6 +39,10 @@ jobs:
         shell: bash
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          if [[ "$GITHUB_REF" == refs/tags/* && ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
+            echo "Release tags must use semantic versioning." >&2
+            exit 1
+          fi
           {
             echo "name=$image"
             echo "tags<<EOF"
@@ -54,6 +59,10 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.image.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.ref_name }}
           provenance: mode=max
           sbom: true
           cache-from: type=gha

@@ -1,7 +1,11 @@
 node_modules/
+.git/
+.github/
 .env
 .data/
 assets/
 test/
 README.md
+compose.yml
+deploy.sh
 npm-debug.log*

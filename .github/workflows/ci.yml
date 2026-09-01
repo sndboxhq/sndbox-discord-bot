@@ -19,6 +19,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm test
       - run: npm run check
+      - run: bash -n deploy.sh
+      - run: DISCORD_BOT_ENV_FILE=.env.example docker compose --env-file .env.example -f compose.yml config --quiet
       - run: docker build -t sndbox-discord-bot:ci .
+      - name: Verify container metadata and runtime syntax
+        shell: bash
+        run: |
+          test "$(docker image inspect sndbox-discord-bot:ci --format '{{.Config.User}}')" = "node"
+          docker image inspect sndbox-discord-bot:ci --format '{{json .Config.Healthcheck}}' | grep -q HEALTH_FILE
+          docker run --rm --entrypoint node sndbox-discord-bot:ci --check src/index.js

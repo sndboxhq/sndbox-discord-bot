@@ -3,6 +3,9 @@ name: sandbox
 services:
   discord-changelog-bot:
     image: ${DISCORD_BOT_IMAGE:-ghcr.io/sndboxhq/sndbox-discord-bot:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     init: true
     env_file:
@@ -25,6 +28,12 @@ services:
     security_opt: [no-new-privileges:true]
     pids_limit: 64
     mem_limit: 192m
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
 volumes:
   discord-changelog-bot-data:

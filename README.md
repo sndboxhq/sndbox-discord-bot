@@ -81,13 +81,29 @@ For the production-style Compose deployment:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up -d --wait
+docker compose up -d --build --wait
 ```
+
+The `build:` definition lets a checked-out repository build locally with
+`--build` without authenticating to GHCR. To deploy a published private image
+instead, authenticate with `docker login ghcr.io` and run `./deploy.sh` using an
+immutable `DISCORD_BOT_IMAGE` tag.
 
 `compose.yml` deliberately retains the original `sandbox` Compose project,
 service, and volume names. Its first deployment therefore takes over the
 existing bot container without losing `.data/state.json` or reposting releases.
-Set `DISCORD_BOT_IMAGE` in `.env` to deploy a specific immutable image tag.
+Set `DISCORD_BOT_IMAGE` in `.env` to a published commit-SHA or version tag for
+production. The `latest` tag is convenient locally but is mutable.
+
+The container runs as the unprivileged `node` user with a read-only root
+filesystem, dropped Linux capabilities, bounded logs, PID/memory limits, a
+graceful shutdown window, and both image-level and Compose health checks. The
+health check becomes ready only after Discord login, channel/role/permission
+validation, honeypot initialization, and the first GitHub release poll succeed.
+
+`deploy.sh` validates all runtime IDs and the GHCR image reference before making
+changes. If the replacement container does not become healthy, it restores the
+previous image while retaining the existing state volume.
 
 The process must stay running to detect releases. A small VPS, home server,
 container host, or process manager such as systemd/PM2 can keep it online.
@@ -118,3 +134,15 @@ environment. Configure `DROPLET_HOST`, `DROPLET_SSH_PRIVATE_KEY`,
 `DROPLET_SSH_KNOWN_HOSTS`, and `DISCORD_BOT_TOKEN` as environment secrets, plus
 `DISCORD_CHANNEL_ID` as a secret or variable. It deploys only this bot and does
 not modify the website, account service, or proxy.
+
+For a production deployment:
+
+1. Push the repository and wait for **Publish container** to finish.
+2. Copy the resulting 40-character commit SHA from the publishing commit.
+3. Run **Deploy DigitalOcean** with that SHA as `image_tag`.
+4. Confirm the workflow's signature verification and health-gated deployment
+   succeed, then check `docker compose -p sandbox ps` on the Droplet.
+
+The deployment workflow rejects `latest`, verifies the image's keyless Sigstore
+signature before connecting to the Droplet, installs `.env` with mode `0600`,
+uses verified SSH host keys, and logs the Droplet out of GHCR afterward.
