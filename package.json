@@ -1,0 +1,19 @@
+{
+  "name": "sndbox-discord-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Posts sndbox changelogs and welcomes new Discord members.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "check": "node --check src/index.js && node --check src/bot.js && node --check src/config.js && node --check src/format.js && node --check src/github.js && node --check src/honeypot.js && node --check src/state.js && node --check src/welcome.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0",
+    "dotenv": "^17.4.2"
+  }
+}

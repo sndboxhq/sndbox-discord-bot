@@ -1,0 +1,106 @@
+name: Deploy DigitalOcean
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Published container tag to deploy
+        required: true
+        default: latest
+
+concurrency:
+  group: discord-bot-digitalocean
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: digitalocean-beta
+    env:
+      IMAGE_TAG: ${{ inputs.image_tag }}
+      DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+      DROPLET_USER: ${{ vars.DROPLET_USER || 'root' }}
+      DROPLET_DEPLOY_PATH: ${{ vars.DISCORD_BOT_DEPLOY_PATH || '/opt/sndbox-discord-bot' }}
+      SSH_PRIVATE_KEY: ${{ secrets.DROPLET_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.DROPLET_SSH_KNOWN_HOSTS }}
+      GHCR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN || secrets.DISCORD_TOKEN }}
+      DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID || vars.DISCORD_CHANNEL_ID }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate deployment inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$IMAGE_TAG" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Invalid image tag '$IMAGE_TAG'." >&2; exit 1; }
+          [[ "$DROPLET_HOST" =~ ^[A-Za-z0-9.-]+$ ]] || { echo "DROPLET_HOST must be an IPv4 address or hostname." >&2; exit 1; }
+          [[ "$DROPLET_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || { echo "DROPLET_USER is invalid." >&2; exit 1; }
+          [[ "$DROPLET_DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]] || { echo "DISCORD_BOT_DEPLOY_PATH must be a simple absolute path." >&2; exit 1; }
+          [[ -n "$SSH_PRIVATE_KEY" && -n "$SSH_KNOWN_HOSTS" ]] || { echo "Droplet SSH secrets are not configured." >&2; exit 1; }
+          [[ -n "$DISCORD_BOT_TOKEN" && "$DISCORD_BOT_TOKEN" != *$'\n'* && "$DISCORD_BOT_TOKEN" != *$'\r'* ]] || { echo "DISCORD_BOT_TOKEN must be a single-line secret." >&2; exit 1; }
+          [[ "$DISCORD_CHANNEL_ID" =~ ^[0-9]{17,20}$ ]] || { echo "DISCORD_CHANNEL_ID must be a 17-20 digit secret or variable." >&2; exit 1; }
+
+      - name: Configure verified SSH access
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/digitalocean_deploy"
+          chmod 600 "$HOME/.ssh/digitalocean_deploy"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+          cat > "$HOME/.ssh/config" <<EOF
+          Host discord-bot-droplet
+            HostName $DROPLET_HOST
+            User $DROPLET_USER
+            IdentityFile $HOME/.ssh/digitalocean_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            BatchMode yes
+            ConnectTimeout 15
+          EOF
+          chmod 600 "$HOME/.ssh/config"
+          ssh discord-bot-droplet 'docker version >/dev/null && docker compose version >/dev/null'
+
+      - name: Install deployment bundle and runtime secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:$IMAGE_TAG"
+          runtime_env="$RUNNER_TEMP/discord-bot.env"
+          {
+            printf 'DISCORD_BOT_IMAGE=%s\n' "$image"
+            printf 'DISCORD_TOKEN=%s\n' "$DISCORD_BOT_TOKEN"
+            printf 'DISCORD_CHANNEL_ID=%s\n' "$DISCORD_CHANNEL_ID"
+            printf 'DISCORD_WELCOME_ROLE_ID=1544329194157375569\n'
+            printf 'DISCORD_HONEYPOT_CHANNEL_ID=1544427379919954031\n'
+            printf 'GITHUB_REPOSITORY=ChristianRelf/sandbox\n'
+            printf 'POLL_INTERVAL_SECONDS=300\n'
+            printf 'INCLUDE_PRERELEASES=true\n'
+            printf 'POST_LATEST_ON_START=true\n'
+          } > "$runtime_env"
+          scp compose.yml deploy.sh "$runtime_env" discord-bot-droplet:
+          ssh discord-bot-droplet "install -d -m 0755 '$DROPLET_DEPLOY_PATH' && install -m 0644 compose.yml '$DROPLET_DEPLOY_PATH/compose.yml' && install -m 0755 deploy.sh '$DROPLET_DEPLOY_PATH/deploy.sh' && install -m 0600 discord-bot.env '$DROPLET_DEPLOY_PATH/.env' && rm -f compose.yml deploy.sh discord-bot.env"
+          rm -f "$runtime_env"
+
+      - name: Authenticate, deploy, and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_PASSWORD" | ssh discord-bot-droplet "docker login ghcr.io --username '$GITHUB_ACTOR' --password-stdin"
+          ssh discord-bot-droplet "cd '$DROPLET_DEPLOY_PATH' && ./deploy.sh"
+
+      - name: Remove temporary credentials
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          ssh discord-bot-droplet 'docker logout ghcr.io >/dev/null 2>&1 || true'
+          rm -f "$HOME/.ssh/digitalocean_deploy" "$HOME/.ssh/config" "$HOME/.ssh/known_hosts" "$RUNNER_TEMP/discord-bot.env"

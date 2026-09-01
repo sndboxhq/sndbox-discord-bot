@@ -1,0 +1,30 @@
+name: sandbox
+
+services:
+  discord-changelog-bot:
+    image: ${DISCORD_BOT_IMAGE:-ghcr.io/sndboxhq/sndbox-discord-bot:latest}
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ${DISCORD_BOT_ENV_FILE:-.env}
+    environment:
+      STATE_FILE: /app/.data/state.json
+      HEALTH_FILE: /tmp/ready
+    volumes:
+      - discord-changelog-bot-data:/app/.data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('node:fs').accessSync('/tmp/ready')"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 192m
+
+volumes:
+  discord-changelog-bot-data:
