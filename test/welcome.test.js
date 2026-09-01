@@ -1,6 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { onboardMember, validateWelcomeRole } from "../src/welcome.js";
+import { buildWelcomeMessage, onboardMember, validateWelcomeRole } from "../src/welcome.js";
+
+test("buildWelcomeMessage creates a branded sndbox embed", () => {
+  const message = buildWelcomeMessage();
+  assert.equal(message.content, undefined);
+  assert.deepEqual(message.allowedMentions, { parse: [] });
+  assert.equal(message.embeds.length, 1);
+
+  const embed = message.embeds[0].toJSON();
+  assert.equal(embed.color, 0xd6ff4b);
+  assert.equal(embed.title, "Welcome to sndbox");
+  assert.equal(embed.url, "https://sndbox.app/");
+  assert.match(embed.description, /local-first visual workflow automation platform/);
+  assert.match(embed.fields[0].value, /https:\/\/sndbox\.app\/downloads/);
+  assert.match(embed.fields[0].value, /https:\/\/docs\.sndbox\.app\//);
+  assert.match(embed.fields[1].value, /https:\/\/github\.com\/ChristianRelf\/sandbox/);
+});
 
 test("validateWelcomeRole accepts only a manageable role below the bot", async () => {
   const role = { id: "1544329194157375569", managed: false, position: 5 };
@@ -37,10 +53,7 @@ test("onboardMember assigns the configured role and sends the sndbox welcome DM"
 
   assert.deepEqual(assignedRoles, [["1544329194157375569", "Automatic sndbox member role"]]);
   assert.equal(messages.length, 1);
-  assert.match(messages[0].content, /Welcome to the sndbox server/);
-  assert.match(messages[0].content, /https:\/\/sndbox\.app\/downloads/);
-  assert.match(messages[0].content, /https:\/\/docs\.sndbox\.app\//);
-  assert.match(messages[0].content, /https:\/\/github\.com\/ChristianRelf\/sandbox/);
+  assert.equal(messages[0].embeds[0].toJSON().title, "Welcome to sndbox");
   assert.deepEqual(result, { skipped: false, roleAssigned: true, messageSent: true });
 });
 

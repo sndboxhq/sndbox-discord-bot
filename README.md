@@ -6,6 +6,8 @@ it posts:
 - the changelog; and
 - one download button beneath it.
 
+Its Discord activity is shown as **Watching sndbox releases**.
+
 When a human member joins the server, the bot assigns role
 `1544329194157375569` and sends them a welcome DM with server information and
 the main sndbox links. Failed DMs are logged without preventing role assignment.

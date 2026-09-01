@@ -1,21 +1,33 @@
-import { PermissionFlagsBits } from "discord.js";
-
-const welcomeMessage = `Welcome to the sndbox server!
-
-sndbox is a local-first visual workflow automation platform. Use this server to follow releases, ask for help, share feedback, and connect with other sndbox users.
-
-Useful links:
-• Website: https://sndbox.app/
-• Download: https://sndbox.app/downloads
-• Documentation: https://docs.sndbox.app/
-• Changelog: https://sndbox.app/changelog
-• GitHub: https://github.com/ChristianRelf/sandbox
-
-Please review the server rules, then make yourself at home.`;
+import { EmbedBuilder, PermissionFlagsBits } from "discord.js";
 
 export function buildWelcomeMessage() {
+  const embed = new EmbedBuilder()
+    .setColor(0xd6ff4b)
+    .setTitle("Welcome to sndbox")
+    .setURL("https://sndbox.app/")
+    .setDescription(
+      "Thanks for joining the sndbox community!\n\n"
+      + "sndbox is a **local-first visual workflow automation platform**. "
+      + "Use this server to follow releases, ask for help, share feedback, and connect with other sndbox users.",
+    )
+    .addFields(
+      {
+        name: "Get started",
+        value: "[Download sndbox](https://sndbox.app/downloads)  •  [Read the documentation](https://docs.sndbox.app/)",
+      },
+      {
+        name: "Stay up to date",
+        value: "[Changelog](https://sndbox.app/changelog)  •  [GitHub](https://github.com/ChristianRelf/sandbox)  •  [Website](https://sndbox.app/)",
+      },
+      {
+        name: "Before you begin",
+        value: "Please review the server rules, then make yourself at home.",
+      },
+    )
+    .setFooter({ text: "sndbox • build visually, run locally" });
+
   return {
-    content: welcomeMessage,
+    embeds: [embed],
     allowedMentions: { parse: [] },
   };
 }

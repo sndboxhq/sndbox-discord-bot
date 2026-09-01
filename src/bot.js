@@ -1,4 +1,4 @@
-import { Client, Events, GatewayIntentBits, PermissionFlagsBits } from "discord.js";
+import { ActivityType, Client, Events, GatewayIntentBits, PermissionFlagsBits } from "discord.js";
 import { writeFile } from "node:fs/promises";
 import { buildReleaseMessage } from "./format.js";
 import { chooseReleasesToPost, fetchReleases } from "./github.js";
@@ -92,6 +92,10 @@ export function createBot(config, dependencies = {}) {
 
   client.once(Events.ClientReady, async (readyClient) => {
     try {
+      readyClient.user.setPresence({
+        activities: [{ name: "sndbox releases", type: ActivityType.Watching }],
+        status: "online",
+      });
       const channel = await fetchTargetChannel();
       if (!channel.guild) throw new Error("The changelog channel must belong to a Discord server.");
       await validateWelcomeRole(channel.guild, config.welcomeRoleId);
