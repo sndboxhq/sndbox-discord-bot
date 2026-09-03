@@ -1,5 +1,10 @@
 import { ActivityType, Client, Events, GatewayIntentBits, PermissionFlagsBits } from "discord.js";
 import { writeFile } from "node:fs/promises";
+import {
+  handleBetaInteraction,
+  initializeBetaAnnouncement,
+  sendBetaReleaseDMs,
+} from "./beta.js";
 import { buildReleaseMessage } from "./format.js";
 import { chooseReleasesToPost, fetchReleases } from "./github.js";
 import { handleHoneypotMessage, initializeHoneypot } from "./honeypot.js";
@@ -16,6 +21,7 @@ export function createBot(config, dependencies = {}) {
   let stopped = false;
   let targetGuildId;
   let honeypotController;
+  let betaController = dependencies.betaController;
   const pendingHoneypotBans = new Set();
 
   async function poll() {
@@ -60,7 +66,12 @@ export function createBot(config, dependencies = {}) {
   async function postRelease(release) {
     const channel = await fetchTargetChannel();
     await channel.send(buildReleaseMessage(release));
+    const subscriberIds = betaController ? await betaController.getSubscriberIds() : [];
+    const deliveries = await sendBetaReleaseDMs(client, subscriberIds, release);
     console.log(`[${new Date().toISOString()}] Posted ${release.tag} to channel ${config.channelId}.`);
+    if (subscriberIds.length > 0) {
+      console.log(`[${new Date().toISOString()}] Sent ${release.tag} to ${deliveries.sent} beta subscriber(s); ${deliveries.failed} failed.`);
+    }
   }
 
   async function fetchTargetChannel() {
@@ -90,6 +101,14 @@ export function createBot(config, dependencies = {}) {
     return channel;
   }
 
+  async function fetchBetaChannel() {
+    const channel = await client.channels.fetch(config.betaChannelId);
+    if (!channel || typeof channel.send !== "function" || !channel.guild) {
+      throw new Error(`Discord beta channel ${config.betaChannelId} is not a sendable server text channel.`);
+    }
+    return channel;
+  }
+
   client.once(Events.ClientReady, async (readyClient) => {
     try {
       readyClient.user.setPresence({
@@ -100,6 +119,13 @@ export function createBot(config, dependencies = {}) {
       if (!channel.guild) throw new Error("The changelog channel must belong to a Discord server.");
       await validateWelcomeRole(channel.guild, config.welcomeRoleId);
       targetGuildId = channel.guild.id;
+      const betaChannel = config.betaChannelId === config.channelId ? channel : await fetchBetaChannel();
+      if (betaChannel.guild.id !== targetGuildId) {
+        throw new Error("The changelog and beta channels must belong to the same Discord server.");
+      }
+      betaController = await initializeBetaAnnouncement(betaChannel, readyClient.user, {
+        stateFile: config.betaStateFile,
+      });
       const honeypotChannel = await fetchHoneypotChannel();
       if (honeypotChannel.guild.id !== targetGuildId) {
         throw new Error("The changelog and honeypot channels must belong to the same Discord server.");
@@ -129,6 +155,10 @@ export function createBot(config, dependencies = {}) {
       pendingBans: pendingHoneypotBans,
       onBan: () => honeypotController?.recordBan(),
     });
+  });
+  client.on(Events.InteractionCreate, (interaction) => {
+    void handleBetaInteraction(interaction, betaController, { guildId: targetGuildId })
+      .catch((error) => console.error("Could not handle a beta button interaction:", error));
   });
   client.on(Events.Error, (error) => console.error("Discord client error:", error));
 

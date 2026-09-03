@@ -16,11 +16,28 @@ test("loadConfig supplies safe polling defaults", () => {
   assert.equal(config.repository.fullName, "ChristianRelf/sandbox");
   assert.equal(config.welcomeRoleId, "1544329194157375569");
   assert.equal(config.honeypotChannelId, "1544427379919954031");
+  assert.equal(config.betaChannelId, "123456789012345678");
   assert.equal(config.pollIntervalMs, 300_000);
   assert.equal(config.includePrereleases, true);
   assert.equal(config.postLatestOnStart, true);
   assert.match(config.honeypotStateFile, /honeypot\.json$/);
+  assert.match(config.betaStateFile, /beta\.json$/);
   assert.equal(config.healthFile, undefined);
+});
+
+test("loadConfig accepts a separate beta channel and rejects invalid IDs", () => {
+  const config = loadConfig({
+    DISCORD_TOKEN: "secret",
+    DISCORD_CHANNEL_ID: "123456789012345678",
+    DISCORD_BETA_CHANNEL_ID: "987654321098765432",
+  });
+  assert.equal(config.betaChannelId, "987654321098765432");
+
+  assert.throws(() => loadConfig({
+    DISCORD_TOKEN: "secret",
+    DISCORD_CHANNEL_ID: "123456789012345678",
+    DISCORD_BETA_CHANNEL_ID: "not-a-channel",
+  }), /17-20 digit Discord channel ID/);
 });
 
 test("loadConfig accepts a custom welcome role and rejects invalid role IDs", () => {

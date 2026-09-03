@@ -11,6 +11,7 @@ RUN mkdir -p /app/.data && chown -R node:node /app/.data
 
 ENV NODE_ENV=production \
     STATE_FILE=/app/.data/state.json \
+    BETA_STATE_FILE=/app/.data/beta.json \
     HONEYPOT_STATE_FILE=/app/.data/honeypot.json \
     HEALTH_FILE=/tmp/ready
 

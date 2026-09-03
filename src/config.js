@@ -31,10 +31,18 @@ export function loadConfig(env = process.env, workingDirectory = process.cwd()) 
   const honeypotStateFile = optional(env.HONEYPOT_STATE_FILE)
     ? resolve(workingDirectory, optional(env.HONEYPOT_STATE_FILE))
     : resolve(dirname(stateFile), "honeypot.json");
+  const betaChannelId = env.DISCORD_BETA_CHANNEL_ID?.trim() || channelId;
+  if (!discordSnowflake.test(betaChannelId)) {
+    throw new Error("DISCORD_BETA_CHANNEL_ID must be a 17-20 digit Discord channel ID.");
+  }
+  const betaStateFile = optional(env.BETA_STATE_FILE)
+    ? resolve(workingDirectory, optional(env.BETA_STATE_FILE))
+    : resolve(dirname(stateFile), "beta.json");
 
   return Object.freeze({
     token,
     channelId,
+    betaChannelId,
     welcomeRoleId,
     honeypotChannelId,
     repository,
@@ -43,6 +51,7 @@ export function loadConfig(env = process.env, workingDirectory = process.cwd()) 
     includePrereleases: boolean(env.INCLUDE_PRERELEASES, true, "INCLUDE_PRERELEASES"),
     postLatestOnStart: boolean(env.POST_LATEST_ON_START, true, "POST_LATEST_ON_START"),
     stateFile,
+    betaStateFile,
     honeypotStateFile,
     healthFile: optional(env.HEALTH_FILE)
       ? resolve(workingDirectory, optional(env.HEALTH_FILE))

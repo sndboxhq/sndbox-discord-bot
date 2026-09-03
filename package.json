@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "check": "node --check src/index.js && node --check src/bot.js && node --check src/config.js && node --check src/format.js && node --check src/github.js && node --check src/honeypot.js && node --check src/state.js && node --check src/welcome.js",
+    "check": "node --check src/index.js && node --check src/beta.js && node --check src/bot.js && node --check src/config.js && node --check src/format.js && node --check src/github.js && node --check src/honeypot.js && node --check src/state.js && node --check src/welcome.js",
     "test": "node --test"
   },
   "dependencies": {

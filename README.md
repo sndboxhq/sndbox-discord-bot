@@ -8,6 +8,13 @@ it posts:
 
 Its Discord activity is shown as **Watching sndbox releases**.
 
+On startup, the bot also posts or refreshes an interactive **Join beta**
+announcement. Clicking the button privately confirms the opt-in and stores the
+member ID in `.data/beta.json`. Every release announced by the bot is then sent
+to each beta subscriber by DM, including its changelog and download button.
+Individual closed or failed DMs are logged without preventing delivery to the
+remaining subscribers.
+
 When a human member joins the server, the bot assigns role
 `1544329194157375569` and sends them a welcome DM with server information and
 the main sndbox links. Failed DMs are logged without preventing role assignment.
@@ -25,7 +32,7 @@ latest release is posted once by default.
 
 The honeypot webhook credentials, warning message ID, and ban count are stored
 in `.data/honeypot.json`. Keep that file private because it contains a Discord
-webhook token. The Docker volume preserves both state files across deployments.
+webhook token. The Docker volume preserves all state files across deployments.
 
 ## Set up Discord
 
@@ -53,8 +60,15 @@ Copy-Item .env.example .env
 npm install
 ```
 
-Edit `.env` with your bot token and channel ID, confirm
-`DISCORD_WELCOME_ROLE_ID` and `DISCORD_HONEYPOT_CHANNEL_ID`, then start it:
+Edit `.env` with your bot token and channel ID, then confirm
+`DISCORD_WELCOME_ROLE_ID` and `DISCORD_HONEYPOT_CHANNEL_ID`. The beta
+announcement uses `DISCORD_CHANNEL_ID` by default; set
+`DISCORD_BETA_CHANNEL_ID` to put it in another channel in the same server.
+
+The beta opt-in is sent as a bot-owned message because Discord does not allow
+ordinary incoming webhooks to receive interactive button clicks.
+
+Then start it:
 
 ```powershell
 npm start

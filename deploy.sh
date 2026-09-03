@@ -22,6 +22,12 @@ if ! grep -Eq '^DISCORD_TOKEN=.+' .env \
   exit 1
 fi
 
+beta_channel_id="$(sed -n 's/^DISCORD_BETA_CHANNEL_ID=//p' .env | tail -n 1)"
+if [[ -n "$beta_channel_id" && ! "$beta_channel_id" =~ ^[0-9]{17,20}$ ]]; then
+  echo "DISCORD_BETA_CHANNEL_ID must be empty or a 17-20 digit Discord channel ID." >&2
+  exit 1
+fi
+
 configured_image="$(sed -n 's/^DISCORD_BOT_IMAGE=//p' .env | tail -n 1)"
 if [[ ! "$configured_image" =~ ^ghcr\.io/[a-z0-9][a-z0-9._/-]+:[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
   echo "DISCORD_BOT_IMAGE must be a tagged GHCR image." >&2

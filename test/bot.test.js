@@ -59,3 +59,45 @@ test("polling posts the latest release on first run and never duplicates it", as
 
   await bot.stop();
 });
+
+test("polling DMs every beta subscriber for each newly posted release", async () => {
+  const stateDirectory = await mkdtemp(join(tmpdir(), "changelog-bot-beta-poll-"));
+  const subscriberId = "323456789012345678";
+  const channelMessages = [];
+  const directMessages = [];
+  const client = new EventEmitter();
+  client.channels = { fetch: async () => ({ send: async (message) => channelMessages.push(message) }) };
+  client.users = {
+    fetch: async (id) => ({ send: async (message) => directMessages.push({ id, message }) }),
+  };
+  client.login = async () => "token";
+  client.destroy = () => {};
+
+  let releases = [release("1", "2026-01-01T00:00:00Z")];
+  const bot = createBot({
+    token: "discord-token",
+    channelId: "123456789012345678",
+    repository: { owner: "owner", name: "project", fullName: "owner/project" },
+    githubToken: undefined,
+    pollIntervalMs: 300_000,
+    includePrereleases: true,
+    postLatestOnStart: true,
+    stateFile: join(stateDirectory, "state.json"),
+  }, {
+    client,
+    fetchReleases: async () => releases,
+    betaController: { getSubscriberIds: async () => [subscriberId] },
+  });
+
+  await bot.poll();
+  await bot.poll();
+  releases = [...releases, release("2", "2026-02-01T00:00:00Z")];
+  await bot.poll();
+
+  assert.equal(channelMessages.length, 2);
+  assert.equal(directMessages.length, 2);
+  assert.deepEqual(directMessages.map(({ id }) => id), [subscriberId, subscriberId]);
+  assert.equal(directMessages[1].message.embeds[0].toJSON().title, "Release 2");
+
+  await bot.stop();
+});
