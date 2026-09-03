@@ -9,11 +9,12 @@ it posts:
 Its Discord activity is shown as **Watching sndbox releases**.
 
 On startup, the bot also posts or refreshes an interactive **Join beta**
-announcement. Clicking the button privately confirms the opt-in and stores the
-member ID in `.data/beta.json`. Every release announced by the bot is then sent
-to each beta subscriber by DM, including its changelog and download button.
-Individual closed or failed DMs are logged without preventing delivery to the
-remaining subscribers.
+announcement. Clicking the button assigns the configured beta role, stores the
+member ID in `.data/beta.json`, privately confirms the opt-in, and sends a
+branded welcome DM. Every release announced by the bot is then sent to each
+beta subscriber by DM, including its changelog and download button. Individual
+closed or failed DMs are logged without preventing delivery to the remaining
+subscribers.
 
 When a human member joins the server, the bot assigns role
 `1544329194157375569` and sends them a welcome DM with server information and
@@ -41,7 +42,7 @@ webhook token. The Docker volume preserves all state files across deployments.
 3. Under **Bot**, enable the privileged **Server Members Intent**. Message Content is not required.
 4. Under **Installation**, enable a server/guild install with the `bot` scope.
 5. Grant **View Channels**, **Read Message History**, **Send Messages**, **Embed Links**, **Manage Messages**, **Manage Roles**, **Manage Webhooks**, and **Ban Members**, then use the install link to add the bot to your server.
-6. In the server role list, place the bot's role above role `1544329194157375569`; Discord prevents bots from assigning roles above their own.
+6. Create a beta role, copy its ID into `DISCORD_BETA_ROLE_ID`, and place both it and role `1544329194157375569` below the bot's role; Discord prevents bots from assigning roles above their own.
 7. In Discord, enable Developer Mode, right-click the destination channel, and choose **Copy Channel ID**.
 
 The configured welcome role must be an assignable server role, not Discord's
@@ -61,8 +62,9 @@ npm install
 ```
 
 Edit `.env` with your bot token and channel ID, then confirm
-`DISCORD_WELCOME_ROLE_ID` and `DISCORD_HONEYPOT_CHANNEL_ID`. The beta
-announcement uses `DISCORD_CHANNEL_ID` by default; set
+`DISCORD_WELCOME_ROLE_ID`, `DISCORD_BETA_ROLE_ID`, and
+`DISCORD_HONEYPOT_CHANNEL_ID`. The beta announcement uses
+`DISCORD_CHANNEL_ID` by default; set
 `DISCORD_BETA_CHANNEL_ID` to put it in another channel in the same server.
 
 The beta opt-in is sent as a bot-owned message because Discord does not allow
@@ -154,8 +156,10 @@ repository's GitHub Container Registry package.
 The manual **Deploy DigitalOcean** workflow uses the `digitalocean-beta`
 environment. Configure `DROPLET_HOST`, `DROPLET_SSH_PRIVATE_KEY`,
 `DROPLET_SSH_KNOWN_HOSTS`, and `DISCORD_BOT_TOKEN` as environment secrets, plus
-`DISCORD_CHANNEL_ID` as a secret or variable. It deploys only this bot and does
-not modify the website, account service, or proxy.
+`DISCORD_CHANNEL_ID` and `DISCORD_BETA_ROLE_ID` as secrets or variables.
+`DISCORD_BETA_CHANNEL_ID` is optional and defaults to `DISCORD_CHANNEL_ID`. The
+workflow deploys only this bot and does not modify the website, account service,
+or proxy.
 
 For a production deployment:
 

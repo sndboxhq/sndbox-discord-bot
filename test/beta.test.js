@@ -7,9 +7,11 @@ import {
   betaJoinButtonId,
   buildBetaAnnouncement,
   buildBetaReleaseMessage,
+  buildBetaWelcomeMessage,
   handleBetaInteraction,
   initializeBetaAnnouncement,
   sendBetaReleaseDMs,
+  validateBetaRole,
 } from "../src/beta.js";
 
 const botId = "123456789012345678";
@@ -60,6 +62,35 @@ test("buildBetaAnnouncement creates an interactive Join beta button", () => {
   assert.deepEqual(message.allowedMentions, { parse: [] });
 });
 
+test("buildBetaWelcomeMessage creates a polished beta welcome DM", () => {
+  const message = buildBetaWelcomeMessage();
+  const embed = message.embeds[0].toJSON();
+  const buttons = message.components[0].toJSON().components;
+
+  assert.equal(embed.title, "Welcome to the beta program");
+  assert.match(embed.description, /You’re in/);
+  assert.match(embed.fields[0].value, /every new release/);
+  assert.deepEqual(buttons.map(({ label }) => label), ["Visit sndbox", "Read the docs"]);
+});
+
+test("validateBetaRole requires a manageable role below the bot", async () => {
+  const role = { id: "623456789012345678", managed: false, position: 4 };
+  const guild = {
+    id: "523456789012345678",
+    roles: { fetch: async () => role },
+    members: {
+      me: {
+        permissions: { has: () => true },
+        roles: { highest: { position: 5 } },
+      },
+    },
+  };
+
+  await assert.doesNotReject(() => validateBetaRole(guild, role.id));
+  role.position = 5;
+  await assert.rejects(() => validateBetaRole(guild, role.id), /must be above/);
+});
+
 test("beta subscribers are saved durably and duplicate joins are idempotent", async () => {
   const directory = await mkdtemp(join(tmpdir(), "sndbox-beta-"));
   const stateFile = join(directory, "beta.json");
@@ -107,25 +138,63 @@ test("Join beta interactions subscribe once and reply ephemerally", async () => 
   const stateFile = join(directory, "beta.json");
   const controller = await initializeBetaAnnouncement(betaChannel([]), { id: botId }, { stateFile });
   const replies = [];
+  const assignedRoles = [];
+  const directMessages = [];
   const interaction = {
     isButton: () => true,
     customId: betaJoinButtonId,
     guildId: "523456789012345678",
-    user: { id: firstUserId, bot: false },
+    user: {
+      id: firstUserId,
+      bot: false,
+      send: async (message) => directMessages.push(message),
+    },
+    member: { roles: { add: async (...args) => assignedRoles.push(args) } },
     deferReply: async (options) => replies.push(options),
     editReply: async (message) => replies.push(message),
   };
 
   assert.deepEqual(await handleBetaInteraction(interaction, controller, {
     guildId: "523456789012345678",
+    roleId: "623456789012345678",
   }), { handled: true, joined: true });
   assert.deepEqual(replies[0], { ephemeral: true });
-  assert.match(replies[1], /joined/);
+  assert.match(replies[1], /Welcome/);
+  assert.equal(assignedRoles[0][0], "623456789012345678");
+  assert.equal(directMessages.length, 1);
+  assert.equal(directMessages[0].embeds[0].toJSON().title, "Welcome to the beta program");
 
   assert.deepEqual(await handleBetaInteraction(interaction, controller, {
     guildId: "523456789012345678",
+    roleId: "623456789012345678",
   }), { handled: true, joined: false });
   assert.match(replies[3], /already/);
+  assert.equal(assignedRoles.length, 2);
+  assert.equal(directMessages.length, 1);
+});
+
+test("a failed role assignment does not enroll the member", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "sndbox-beta-role-failure-"));
+  const stateFile = join(directory, "beta.json");
+  const controller = await initializeBetaAnnouncement(betaChannel([]), { id: botId }, { stateFile });
+  const replies = [];
+  const interaction = {
+    isButton: () => true,
+    customId: betaJoinButtonId,
+    guildId: "523456789012345678",
+    user: { id: firstUserId, bot: false, send: async () => {} },
+    member: { roles: { add: async () => { throw new Error("Role hierarchy"); } } },
+    deferReply: async () => {},
+    editReply: async (message) => replies.push(message),
+  };
+
+  assert.deepEqual(await handleBetaInteraction(interaction, controller, {
+    guildId: "523456789012345678",
+    roleId: "623456789012345678",
+    logger: { error: () => {} },
+  }), { handled: true, joined: false });
+  assert.match(replies[0], /couldn’t assign/);
+  assert.deepEqual(await controller.getSubscriberIds(), []);
 });
 
 test("release DMs reach every available subscriber and isolate failures", async () => {

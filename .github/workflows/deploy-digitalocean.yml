@@ -31,6 +31,7 @@ jobs:
       DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN || secrets.DISCORD_TOKEN }}
       DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID || vars.DISCORD_CHANNEL_ID }}
       DISCORD_BETA_CHANNEL_ID: ${{ secrets.DISCORD_BETA_CHANNEL_ID || vars.DISCORD_BETA_CHANNEL_ID || secrets.DISCORD_CHANNEL_ID || vars.DISCORD_CHANNEL_ID }}
+      DISCORD_BETA_ROLE_ID: ${{ secrets.DISCORD_BETA_ROLE_ID || vars.DISCORD_BETA_ROLE_ID }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -53,6 +54,7 @@ jobs:
           [[ -n "$DISCORD_BOT_TOKEN" && "$DISCORD_BOT_TOKEN" != *$'\n'* && "$DISCORD_BOT_TOKEN" != *$'\r'* ]] || { echo "DISCORD_BOT_TOKEN must be a single-line secret." >&2; exit 1; }
           [[ "$DISCORD_CHANNEL_ID" =~ ^[0-9]{17,20}$ ]] || { echo "DISCORD_CHANNEL_ID must be a 17-20 digit secret or variable." >&2; exit 1; }
           [[ "$DISCORD_BETA_CHANNEL_ID" =~ ^[0-9]{17,20}$ ]] || { echo "DISCORD_BETA_CHANNEL_ID must be a 17-20 digit secret or variable." >&2; exit 1; }
+          [[ "$DISCORD_BETA_ROLE_ID" =~ ^[0-9]{17,20}$ ]] || { echo "DISCORD_BETA_ROLE_ID must be a 17-20 digit secret or variable." >&2; exit 1; }
 
       - name: Verify the published image signature
         shell: bash
@@ -99,6 +101,7 @@ jobs:
             printf 'DISCORD_CHANNEL_ID=%s\n' "$DISCORD_CHANNEL_ID"
             printf 'DISCORD_BETA_CHANNEL_ID=%s\n' "$DISCORD_BETA_CHANNEL_ID"
             printf 'DISCORD_WELCOME_ROLE_ID=1544329194157375569\n'
+            printf 'DISCORD_BETA_ROLE_ID=%s\n' "$DISCORD_BETA_ROLE_ID"
             printf 'DISCORD_HONEYPOT_CHANNEL_ID=1544427379919954031\n'
             printf 'GITHUB_REPOSITORY=ChristianRelf/sandbox\n'
             printf 'POLL_INTERVAL_SECONDS=300\n'

@@ -17,8 +17,9 @@ fi
 if ! grep -Eq '^DISCORD_TOKEN=.+' .env \
   || ! grep -Eq '^DISCORD_CHANNEL_ID=[0-9]{17,20}$' .env \
   || ! grep -Eq '^DISCORD_WELCOME_ROLE_ID=[0-9]{17,20}$' .env \
+  || ! grep -Eq '^DISCORD_BETA_ROLE_ID=[0-9]{17,20}$' .env \
   || ! grep -Eq '^DISCORD_HONEYPOT_CHANNEL_ID=[0-9]{17,20}$' .env; then
-  echo ".env is missing a valid Discord token, channel ID, welcome role ID, or honeypot channel ID." >&2
+  echo ".env is missing a valid Discord token, channel ID, welcome role ID, beta role ID, or honeypot channel ID." >&2
   exit 1
 fi
 

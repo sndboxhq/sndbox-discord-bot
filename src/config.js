@@ -15,6 +15,10 @@ export function loadConfig(env = process.env, workingDirectory = process.cwd()) 
   if (!discordSnowflake.test(welcomeRoleId)) {
     throw new Error("DISCORD_WELCOME_ROLE_ID must be a 17-20 digit Discord role ID.");
   }
+  const betaRoleId = required(env, "DISCORD_BETA_ROLE_ID");
+  if (!discordSnowflake.test(betaRoleId)) {
+    throw new Error("DISCORD_BETA_ROLE_ID must be a 17-20 digit Discord role ID.");
+  }
   const honeypotChannelId = env.DISCORD_HONEYPOT_CHANNEL_ID?.trim() || defaultHoneypotChannelId;
   if (!discordSnowflake.test(honeypotChannelId)) {
     throw new Error("DISCORD_HONEYPOT_CHANNEL_ID must be a 17-20 digit Discord channel ID.");
@@ -44,6 +48,7 @@ export function loadConfig(env = process.env, workingDirectory = process.cwd()) 
     channelId,
     betaChannelId,
     welcomeRoleId,
+    betaRoleId,
     honeypotChannelId,
     repository,
     githubToken: optional(env.GITHUB_TOKEN),

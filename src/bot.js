@@ -4,6 +4,7 @@ import {
   handleBetaInteraction,
   initializeBetaAnnouncement,
   sendBetaReleaseDMs,
+  validateBetaRole,
 } from "./beta.js";
 import { buildReleaseMessage } from "./format.js";
 import { chooseReleasesToPost, fetchReleases } from "./github.js";
@@ -118,6 +119,7 @@ export function createBot(config, dependencies = {}) {
       const channel = await fetchTargetChannel();
       if (!channel.guild) throw new Error("The changelog channel must belong to a Discord server.");
       await validateWelcomeRole(channel.guild, config.welcomeRoleId);
+      await validateBetaRole(channel.guild, config.betaRoleId);
       targetGuildId = channel.guild.id;
       const betaChannel = config.betaChannelId === config.channelId ? channel : await fetchBetaChannel();
       if (betaChannel.guild.id !== targetGuildId) {
@@ -157,7 +159,10 @@ export function createBot(config, dependencies = {}) {
     });
   });
   client.on(Events.InteractionCreate, (interaction) => {
-    void handleBetaInteraction(interaction, betaController, { guildId: targetGuildId })
+    void handleBetaInteraction(interaction, betaController, {
+      guildId: targetGuildId,
+      roleId: config.betaRoleId,
+    })
       .catch((error) => console.error("Could not handle a beta button interaction:", error));
   });
   client.on(Events.Error, (error) => console.error("Discord client error:", error));

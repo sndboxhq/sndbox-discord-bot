@@ -48,6 +48,59 @@ export function buildBetaAnnouncement() {
   };
 }
 
+export function buildBetaWelcomeMessage() {
+  const embed = new EmbedBuilder()
+    .setColor(0xd6ff4b)
+    .setAuthor({ name: "sndbox beta" })
+    .setTitle("Welcome to the beta program")
+    .setURL("https://sndbox.app/")
+    .setDescription(
+      "You’re in! Thanks for helping us test what’s next for sndbox.",
+    )
+    .addFields(
+      {
+        name: "🔔 What happens next",
+        value: "We’ll DM you every new release with its changelog and download link.",
+      },
+      {
+        name: "💬 Your feedback matters",
+        value: "Try the latest builds, share what you find, and help shape the experience.",
+      },
+    )
+    .setFooter({ text: "Welcome aboard • Let’s build something great" });
+  const websiteButton = new ButtonBuilder()
+    .setLabel("Visit sndbox")
+    .setStyle(ButtonStyle.Link)
+    .setURL("https://sndbox.app/");
+  const docsButton = new ButtonBuilder()
+    .setLabel("Read the docs")
+    .setStyle(ButtonStyle.Link)
+    .setURL("https://docs.sndbox.app/");
+
+  return {
+    embeds: [embed],
+    components: [new ActionRowBuilder().addComponents(websiteButton, docsButton)],
+    allowedMentions: { parse: [] },
+  };
+}
+
+export async function validateBetaRole(guild, roleId) {
+  const role = await guild.roles.fetch(roleId);
+  if (!role) throw new Error(`Discord beta role ${roleId} does not exist in the target server.`);
+  if (role.id === guild.id) {
+    throw new Error("Discord's built-in @everyone role cannot be used as the beta role.");
+  }
+  if (role.managed) throw new Error(`Discord beta role ${roleId} is managed by an integration and cannot be assigned.`);
+
+  const botMember = guild.members.me ?? await guild.members.fetchMe();
+  if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+    throw new Error("The bot is missing the Manage Roles permission required for the beta role.");
+  }
+  if (role.position >= botMember.roles.highest.position) {
+    throw new Error("The bot's role must be above the configured beta role in the server role list.");
+  }
+}
+
 export async function initializeBetaAnnouncement(channel, clientUser, options = {}) {
   if (!channel.guild || typeof channel.send !== "function" || typeof channel.messages?.fetch !== "function") {
     throw new Error("The beta channel must be a sendable Discord server text channel.");
@@ -106,16 +159,46 @@ export async function handleBetaInteraction(interaction, controller, options = {
 
   const logger = options.logger ?? console;
   try {
-    const joined = await controller.join(interaction.user.id);
-    await interaction.editReply(joined
-      ? "You’ve joined the sndbox beta. I’ll DM you whenever a new release is published."
-      : "You’re already in the sndbox beta and will receive every new release by DM.");
-    return { handled: true, joined };
+    let member = interaction.member;
+    if (typeof member?.roles?.add !== "function" && interaction.guild?.members?.fetch) {
+      member = await interaction.guild.members.fetch(interaction.user.id);
+    }
+    if (!options.roleId || typeof member?.roles?.add !== "function") {
+      throw new Error("The beta role or Discord member is unavailable.");
+    }
+    await member.roles.add(options.roleId, "Joined the sndbox beta program");
+  } catch (error) {
+    logger.error(`Could not assign the beta role to Discord member ${interaction.user.id}.`, error);
+    await interaction.editReply("I couldn’t assign your beta role. Please ask a server admin to check my role permissions, then try again.");
+    return { handled: true, joined: false };
+  }
+
+  let joined;
+  try {
+    joined = await controller.join(interaction.user.id);
   } catch (error) {
     logger.error(`Could not add Discord member ${interaction.user.id} to the beta.`, error);
     await interaction.editReply("I couldn’t save your beta sign-up. Please try again.");
     return { handled: true, joined: false };
   }
+
+  if (!joined) {
+    await interaction.editReply("You’re already in the sndbox beta. I’ve made sure your beta role is assigned.");
+    return { handled: true, joined: false };
+  }
+
+  let welcomeSent = true;
+  try {
+    await interaction.user.send(buildBetaWelcomeMessage());
+  } catch (error) {
+    welcomeSent = false;
+    logger.warn(`Discord member ${interaction.user.id} joined the beta, but their welcome DM failed.`, error);
+  }
+  await interaction.editReply(welcomeSent
+    ? "Welcome to the sndbox beta! Your role is assigned and I’ve sent you a welcome DM."
+    : "Welcome to the sndbox beta! Your role is assigned, but I couldn’t send your welcome DM. "
+      + "Please enable direct messages from server members so you receive release notifications.");
+  return { handled: true, joined: true };
 }
 
 export async function sendBetaReleaseDMs(client, subscriberIds, release, logger = console) {
